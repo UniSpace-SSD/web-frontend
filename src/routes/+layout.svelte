@@ -70,8 +70,6 @@
 					{#if isAdminUser}
 						<a href="/admin" onclick={closeMobileMenu}>Admin</a>
 					{/if}
-					<a href="/api-tester" onclick={closeMobileMenu}>API Tester</a>
-
 					<div class="nav-actions">
 						<button class="theme-toggle" onclick={toggleTheme} title="Toggle theme">
 							{#if theme === 'dark'}

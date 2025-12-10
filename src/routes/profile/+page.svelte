@@ -63,6 +63,11 @@
 		}
 		return 'student';
 	}
+
+	function getUserRoleLabel(): string {
+		const role = getUserRole();
+		return role === 'professor' ? 'Professor' : 'Student';
+	}
 </script>
 
 <svelte:head>
@@ -72,7 +77,7 @@
 <div class="container">
 	<div class="page-header">
 		<h1>👤 Your Profile</h1>
-		<p>Manage your account information</p>
+		<p>Review and update your personal information and account details.</p>
 	</div>
 
 	{#if loading}
@@ -83,115 +88,116 @@
 		<div class="profile-content">
 			<Card>
 				<div class="profile-card">
-					<div class="profile-avatar">
-						<div class="avatar-circle">
-							{user.first_name?.[0]?.toUpperCase() || user.username[0].toUpperCase()}
+					<div class="profile-main">
+						<div class="profile-avatar">
+							<div class="avatar-circle">
+								{user.first_name?.[0]?.toUpperCase() || user.username[0].toUpperCase()}
+							</div>
+							<div class="role-badge">
+								<span class="role-dot"></span>
+								<span>{getUserRoleLabel()}</span>
+							</div>
 						</div>
-					</div>
 
-					<div class="profile-info">
-						{#if isEditing}
-							<div class="edit-form">
-								<div class="form-group">
-									<label class="form-label">Username</label>
-									<input
-										type="text"
-										class="form-input"
-										bind:value={editForm.username}
-										placeholder="Username"
-									/>
-								</div>
+						<div class="profile-info">
+							{#if isEditing}
+								<div class="edit-form">
+									<h2>Edit profile</h2>
+									<p class="edit-subtitle">Update your public information shown across UniSpace.</p>
 
-								<div class="form-row">
 									<div class="form-group">
-										<label class="form-label">First Name</label>
+										<label class="form-label">Username</label>
 										<input
 											type="text"
 											class="form-input"
-											bind:value={editForm.first_name}
-											placeholder="First Name"
+											bind:value={editForm.username}
+											placeholder="Username"
 										/>
 									</div>
 
-									<div class="form-group">
-										<label class="form-label">Last Name</label>
-										<input
-											type="text"
-											class="form-input"
-											bind:value={editForm.last_name}
-											placeholder="Last Name"
-										/>
-									</div>
-								</div>
+									<div class="form-row">
+										<div class="form-group">
+											<label class="form-label">First Name</label>
+											<input
+												type="text"
+												class="form-input"
+												bind:value={editForm.first_name}
+												placeholder="First Name"
+											/>
+										</div>
 
-								<div class="form-actions">
-									<Button variant="primary" onclick={handleUpdate}>Save Changes</Button>
-									<Button variant="secondary" onclick={() => (isEditing = false)}>Cancel</Button>
-								</div>
-							</div>
-						{:else}
-							<div class="info-display">
-								<h2>{user.first_name} {user.last_name}</h2>
-								<p class="username">@{user.username}</p>
-
-								<div class="info-grid">
-									<div class="info-item">
-										<span class="info-label">📧 Email</span>
-										<span class="info-value">{user.email}</span>
+										<div class="form-group">
+											<label class="form-label">Last Name</label>
+											<input
+												type="text"
+												class="form-input"
+												bind:value={editForm.last_name}
+												placeholder="Last Name"
+											/>
+										</div>
 									</div>
 
-									<div class="info-item">
-										<span class="info-label">👥 Role</span>
-										<span class="info-value">
-											{getUserRole() === 'professor' ? 'Professor' : 'Student'}
-										</span>
-									</div>
-
-									<div class="info-item">
-										<span class="info-label">🆔 User ID</span>
-										<span class="info-value">{user.pk}</span>
+									<div class="form-actions">
+										<Button variant="primary" onclick={handleUpdate} disabled={loading}>
+											{#if loading}Saving...{:else}Save Changes{/if}
+										</Button>
+										<Button variant="secondary" onclick={() => (isEditing = false)} disabled={loading}>
+											Cancel
+										</Button>
 									</div>
 								</div>
+							{:else}
+								<div class="info-display">
+									<div class="info-header">
+										<div class="name-block">
+											<h2>{user.first_name} {user.last_name}</h2>
+											<p class="username">@{user.username}</p>
+										</div>
+										<div class="info-chips">
+											<span class="chip">
+												<span class="chip-icon">🎓</span>
+												{getUserRoleLabel()}
+											</span>
+										</div>
+									</div>
 
-								<div class="actions">
-									<Button variant="primary" onclick={() => (isEditing = true)}>
-										✏️ Edit Profile
-									</Button>
+									<div class="info-grid">
+										<div class="info-item">
+											<div class="info-icon">📧</div>
+											<div class="info-text">
+												<span class="info-label">Email</span>
+												<span class="info-value">{user.email}</span>
+											</div>
+										</div>
+
+										<div class="info-item">
+											<div class="info-icon">👥</div>
+											<div class="info-text">
+												<span class="info-label">Role</span>
+												<span class="info-value">{getUserRoleLabel()}</span>
+											</div>
+										</div>
+
+										<div class="info-item">
+											<div class="info-icon">🆔</div>
+											<div class="info-text">
+												<span class="info-label">User ID</span>
+												<span class="info-value">{user.pk}</span>
+											</div>
+										</div>
+									</div>
+
+									<div class="actions">
+										<Button variant="primary" onclick={() => (isEditing = true)}>
+											✏️ Edit Profile
+										</Button>
+									</div>
 								</div>
-							</div>
-						{/if}
+							{/if}
+						</div>
 					</div>
 				</div>
 			</Card>
-
-			<div class="quick-links">
-				<h3>Quick Links</h3>
-				<div class="grid grid-3">
-					<Card>
-						<a href="/reservations" class="quick-link">
-							<div class="link-icon">📅</div>
-							<h4>Your Reservations</h4>
-							<p>View and manage</p>
-						</a>
-					</Card>
-
-					<Card>
-						<a href="/spaces" class="quick-link">
-							<div class="link-icon">📍</div>
-							<h4>Find Spaces</h4>
-							<p>Find available spaces</p>
-						</a>
-					</Card>
-
-					<Card>
-						<a href="/buildings" class="quick-link">
-							<div class="link-icon">🏛️</div>
-							<h4>Buildings</h4>
-							<p>Explore buildings</p>
-						</a>
-					</Card>
-				</div>
-			</div>
 		</div>
 	{/if}
 </div>
@@ -203,7 +209,7 @@
 	}
 
 	.page-header h1 {
-		margin-bottom: var(--spacing-sm);
+		margin-bottom: var(--spacing-xs);
 	}
 
 	.page-header p {
@@ -217,7 +223,7 @@
 	}
 
 	.profile-content {
-		max-width: 800px;
+		max-width: 900px;
 		margin: 0 auto;
 	}
 
@@ -225,57 +231,140 @@
 		padding: var(--spacing-xl);
 	}
 
+	.profile-main {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+		gap: var(--spacing-xl);
+		align-items: center;
+	}
+
 	.profile-avatar {
 		display: flex;
-		justify-content: center;
-		margin-bottom: var(--spacing-xl);
+		flex-direction: column;
+		align-items: center;
+		gap: var(--spacing-md);
 	}
 
 	.avatar-circle {
 		width: 120px;
 		height: 120px;
 		border-radius: 50%;
-		background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+		background: radial-gradient(circle at 30% 0%, #ffffff, rgba(255, 255, 255, 0.3)),
+			linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
 		color: white;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 3rem;
 		font-weight: 700;
+		box-shadow: 0 18px 35px rgba(0, 0, 0, 0.35);
+	}
+
+	.role-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.25rem 0.75rem;
+		border-radius: 999px;
+		background-color: var(--color-bg-secondary);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+	}
+
+	.role-dot {
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 999px;
+		background: var(--color-primary);
 	}
 
 	.profile-info {
-		text-align: center;
+		text-align: left;
 	}
 
 	.info-display h2 {
-		margin-bottom: var(--spacing-xs);
+		margin-bottom: var(--spacing-2xs);
+	}
+
+	.info-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: var(--spacing-md);
+		margin-bottom: var(--spacing-lg);
+	}
+
+	.name-block h2 {
+		margin: 0;
 	}
 
 	.username {
 		color: var(--color-text-secondary);
-		font-size: 1.125rem;
-		margin-bottom: var(--spacing-xl);
+		font-size: 1.05rem;
+		margin-top: var(--spacing-2xs);
+	}
+
+	.info-chips {
+		display: flex;
+		gap: var(--spacing-xs);
+		align-items: center;
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.25rem 0.65rem;
+		border-radius: 999px;
+		background-color: var(--color-bg-secondary);
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		white-space: nowrap;
+	}
+
+	.chip-icon {
+		font-size: 0.9rem;
 	}
 
 	.info-grid {
 		display: grid;
-		gap: var(--spacing-lg);
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--spacing-md);
 		margin-bottom: var(--spacing-xl);
-		text-align: left;
 	}
 
 	.info-item {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
+		gap: var(--spacing-md);
 		padding: var(--spacing-md);
 		background-color: var(--color-bg-secondary);
 		border-radius: var(--radius-md);
 	}
 
+	.info-icon {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 999px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--color-bg-tertiary, rgba(255, 255, 255, 0.04));
+		font-size: 1.3rem;
+	}
+
+	.info-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+
 	.info-label {
-		font-weight: 600;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 		color: var(--color-text-secondary);
 	}
 
@@ -285,14 +374,22 @@
 
 	.actions {
 		display: flex;
-		justify-content: center;
+		justify-content: flex-start;
 		gap: var(--spacing-md);
 	}
 
 	.edit-form {
-		text-align: left;
-		max-width: 500px;
-		margin: 0 auto;
+		max-width: 520px;
+	}
+
+	.edit-form h2 {
+		margin-bottom: var(--spacing-2xs);
+	}
+
+	.edit-subtitle {
+		margin-bottom: var(--spacing-lg);
+		color: var(--color-text-secondary);
+		font-size: 0.95rem;
 	}
 
 	.form-row {
@@ -304,56 +401,44 @@
 	.form-actions {
 		display: flex;
 		gap: var(--spacing-md);
-		justify-content: center;
+		justify-content: flex-start;
 		margin-top: var(--spacing-lg);
 	}
 
-	.quick-links {
-		margin-top: var(--spacing-2xl);
-	}
+	@media (max-width: 900px) {
+		.profile-main {
+			grid-template-columns: minmax(0, 1fr);
+			text-align: center;
+		}
 
-	.quick-links h3 {
-		margin-bottom: var(--spacing-lg);
-		text-align: center;
-	}
+		.profile-info {
+			text-align: left;
+		}
 
-	.quick-link {
-		display: block;
-		text-align: center;
-		padding: var(--spacing-lg);
-		text-decoration: none;
-		color: var(--color-text-primary);
-		transition: transform var(--transition-fast);
-	}
+		.info-header {
+			flex-direction: column;
+			align-items: flex-start;
+		}
 
-	.quick-link:hover {
-		transform: translateY(-4px);
-	}
+		.actions {
+			justify-content: center;
+		}
 
-	.link-icon {
-		font-size: 3rem;
-		margin-bottom: var(--spacing-md);
-	}
-
-	.quick-link h4 {
-		margin-bottom: var(--spacing-xs);
-	}
-
-	.quick-link p {
-		color: var(--color-text-secondary);
-		font-size: 0.875rem;
-		margin: 0;
+		.profile-avatar {
+			margin-bottom: var(--spacing-md);
+		}
 	}
 
 	@media (max-width: 768px) {
-		.form-row {
-			grid-template-columns: 1fr;
-		}
-
 		.avatar-circle {
 			width: 100px;
 			height: 100px;
 			font-size: 2.5rem;
 		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
 	}
 </style>
