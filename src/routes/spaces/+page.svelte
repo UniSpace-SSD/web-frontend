@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Card from '$lib/components/Card.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Badge from '$lib/components/Badge.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -46,22 +49,19 @@
 	</div>
 
 	<div class="filters">
-		<input
-			type="text"
-			class="form-input search-input"
-			placeholder="Search spaces..."
-			bind:value={searchTerm}
-		/>
+		<div class="search-input-wrapper">
+			<Input placeholder="Search spaces..." bind:value={searchTerm} />
+		</div>
 
 		<div class="type-filters">
 			{#each spaceTypes as type}
-				<button
+				<Button
+					variant={selectedType === type ? 'primary' : 'secondary'}
 					class="filter-btn"
-					class:active={selectedType === type}
 					onclick={() => (selectedType = type)}
 				>
 					{type === 'ALL' ? 'All' : spaceTypeLabels[type]}
-				</button>
+				</Button>
 			{/each}
 		</div>
 	</div>
@@ -78,7 +78,10 @@
 						<div class="space-icon">{spaceTypeIcons[space.type]}</div>
 						<h3>{space.name}</h3>
 						<div class="space-meta">
-							<span class="badge">{spaceTypeLabels[space.type]}</span>
+							<Badge>{spaceTypeLabels[space.type]}</Badge>
+							{#if space.department}
+								<Badge variant="outline">{space.department}</Badge>
+							{/if}
 							<span class="capacity">👥 {space.capacity} seats</span>
 						</div>
 						{#if space.building}
@@ -114,112 +117,99 @@
 </div>
 
 <style>
-	.page-header {
-		text-align: center;
-		margin-bottom: var(--spacing-xl);
-	}
+    .page-header {
+        text-align: center;
+        margin-bottom: var(--spacing-xl);
+    }
 
-	.page-header h1 {
-		margin-bottom: var(--spacing-sm);
-	}
+    .page-header h1 {
+        margin-bottom: var(--spacing-sm);
+    }
 
-	.page-header p {
-		color: var(--color-text-secondary);
-	}
+    .page-header p {
+        color: var(--color-text-secondary);
+    }
 
-	.filters {
-		margin-bottom: var(--spacing-xl);
-	}
+    .filters {
+        margin-bottom: var(--spacing-xl);
+    }
 
-	.search-input {
-		max-width: 600px;
-		margin: 0 auto var(--spacing-lg);
-		display: block;
-	}
+    .search-input-wrapper {
+        max-width: 600px;
+        margin: 0 auto var(--spacing-lg);
+    }
 
-	.type-filters {
-		display: flex;
-		gap: var(--spacing-sm);
-		justify-content: center;
-		flex-wrap: wrap;
-	}
+    .type-filters {
+        display: flex;
+        gap: var(--spacing-sm);
+        justify-content: center;
+        flex-wrap: wrap;
+    }
 
-	.filter-btn {
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: 1px solid var(--color-border);
-		background-color: var(--color-bg-primary);
-		color: var(--color-text-primary);
-		border-radius: var(--radius-md);
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
+    .space-card {
+        text-align: center;
+        padding: var(--spacing-md);
+    }
 
-	.filter-btn:hover {
-		border-color: var(--color-primary);
-	}
+    .space-icon {
+        font-size: 2.5rem;
+        width: 4.5rem;
+        height: 4.5rem;
+        margin: 0 auto var(--spacing-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg-tertiary);
+        border-radius: 50%;
+        border: 1px solid var(--color-border);
+    }
 
-	.filter-btn.active {
-		background-color: var(--color-primary);
-		color: white;
-		border-color: var(--color-primary);
-	}
+    .space-card h3 {
+        margin-bottom: var(--spacing-md);
+    }
 
-	.space-card {
-		text-align: center;
-		padding: var(--spacing-md);
-	}
+    .space-meta {
+        display: flex;
+        gap: var(--spacing-sm);
+        justify-content: center;
+        align-items: center;
+        margin-bottom: var(--spacing-md);
+    }
 
-	.space-icon {
-		font-size: 3rem;
-		margin-bottom: var(--spacing-md);
-	}
+    .capacity {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary);
+    }
 
-	.space-card h3 {
-		margin-bottom: var(--spacing-md);
-	}
+    .space-building,
+    .space-floor {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary);
+        margin-bottom: var(--spacing-xs);
+    }
 
-	.space-meta {
-		display: flex;
-		gap: var(--spacing-sm);
-		justify-content: center;
-		align-items: center;
-		margin-bottom: var(--spacing-md);
-	}
+    .equipments {
+        margin: var(--spacing-md) 0;
+        text-align: left;
+        font-size: 0.875rem;
+    }
 
-	.capacity {
-		font-size: 0.875rem;
-		color: var(--color-text-secondary);
-	}
+    .equipments ul {
+        margin-top: var(--spacing-xs);
+        padding-left: var(--spacing-lg);
+    }
 
-	.space-building,
-	.space-floor {
-		font-size: 0.875rem;
-		color: var(--color-text-secondary);
-		margin-bottom: var(--spacing-xs);
-	}
+    .equipments li {
+        color: var(--color-text-secondary);
+    }
 
-	.equipments {
-		margin: var(--spacing-md) 0;
-		text-align: left;
-		font-size: 0.875rem;
-	}
+    .space-actions {
+        margin-top: var(--spacing-md);
+    }
 
-	.equipments ul {
-		margin-top: var(--spacing-xs);
-		padding-left: var(--spacing-lg);
-	}
-
-	.equipments li {
-		color: var(--color-text-secondary);
-	}
-
-	.space-actions {
-		margin-top: var(--spacing-md);
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-2xl);
-		color: var(--color-text-secondary);
-	}
+    .empty-state {
+        text-align: center;
+        padding: var(--spacing-2xl);
+        color: var(--color-text-secondary);
+    }
 </style>

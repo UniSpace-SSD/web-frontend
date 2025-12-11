@@ -1,13 +1,23 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Card from '$lib/components/Card.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Badge from '$lib/components/Badge.svelte';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/services/api';
 	import { onMount } from 'svelte';
+	// import { Type, Layers, Users, Building as BuildingIcon, ArrowLeft, MapPin } from 'lucide-svelte';
+	import { isAdmin, currentUser } from '$lib/stores/auth';
+	import type { Reservation } from '$lib/services/api';
 
 	let { data }: { data: PageData } = $props();
 
 	let space = $derived(data.space);
+
+	const isAdminUser = $derived($isAdmin);
+	const isProfessorUser = $derived($currentUser?.role === 'professor');
+	const currentUserName = $derived($currentUser?.username);
 
 	const spaceTypeLabels: Record<string, string> = {
 		ROOM: '🚪 Room',
@@ -18,76 +28,78 @@
 	};
 
 	let isAuthenticated = $state(false);
-	let header = $state('');
-	let startAt = $state('');
-	let endAt = $state('');
+
+	let reservationForm = $state({
+		header: '',
+		date: '',
+		startTime: '',
+		endTime: ''
+	});
+
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
-	let existingReservations = $state<any[]>([]);
+
+	let loading = $state(false);
+	let loadingReservations = $state(false);
+	let spaceReservations = $state<Reservation[]>([]);
 
 	onMount(async () => {
 		isAuthenticated = !!api.getToken();
-
-		if (isAuthenticated) {
+		loadingReservations = true;
+		if (data.space) {
 			await loadReservations();
 		}
+		loadingReservations = false;
 	});
 
 	async function loadReservations() {
 		try {
-			const allReservations = await api.getReservations();
-			existingReservations = allReservations.filter(
-				(r) => r.space === space.id && r.status !== 'CANCELLED' && r.status !== 'REJECTED'
+			if (!space?.id) return;
+			const allReservations = await api.getReservationsBySpace(space.id);
+			spaceReservations = allReservations.filter(
+				(r) => r.status !== 'CANCELLED' && r.status !== 'REJECTED'
 			);
 		} catch (error) {
 			console.error('Error loading reservations:', error);
 		}
 	}
 
-	function handleBack() {
-		if (space.building_id) {
-			goto(`/buildings/${space.building_id}`);
-		} else {
-			goto('/spaces');
-		}
-	}
-
 	function checkOverlap(start: Date, end: Date): boolean {
-		return existingReservations.some((reservation) => {
+		return spaceReservations.some((reservation) => {
+			if (reservation.status === 'CANCELLED' || reservation.status === 'REJECTED') return false;
 			const existingStart = new Date(reservation.start_at);
 			const existingEnd = new Date(reservation.end_at);
-
 			return start < existingEnd && end > existingStart;
 		});
 	}
 
-	async function handleSubmit(e: Event) {
+	async function handleReservation(e: Event) {
 		e.preventDefault();
 		errorMessage = '';
 		successMessage = '';
 
-		if (!startAt || !endAt) {
-			errorMessage = 'Please enter start and end date and time.';
+		if (!reservationForm.date || !reservationForm.startTime || !reservationForm.endTime) {
+			errorMessage = 'Please fill in all date and time fields.';
 			return;
 		}
 
-		const start = new Date(startAt);
-		const end = new Date(endAt);
+		const start = new Date(`${reservationForm.date}T${reservationForm.startTime}`);
+		const end = new Date(`${reservationForm.date}T${reservationForm.endTime}`);
 		const now = new Date();
 
 		if (start < now) {
-			errorMessage = 'Start date must be in the future.';
+			errorMessage = 'Start time must be in the future.';
 			return;
 		}
 
 		if (end <= start) {
-			errorMessage = 'End date must be after start date.';
+			errorMessage = 'End time must be after start time.';
 			return;
 		}
 
 		if (checkOverlap(start, end)) {
-			errorMessage = 'This space is already booked for the selected period.';
+			errorMessage = 'This space is already reserved for the selected time.';
 			return;
 		}
 
@@ -96,516 +108,491 @@
 		try {
 			const newReservation = await api.createReservation({
 				space: space.id,
-				header: header.trim() || undefined,
+				header: reservationForm.header.trim() || undefined,
 				start_at: start.toISOString(),
 				end_at: end.toISOString()
 			});
 
-			successMessage = `Reservation created successfully! Status: ${newReservation.status}`;
+			successMessage = 'Reservation request submitted successfully!';
 
-			// Reset form
-			header = '';
-			startAt = '';
-			endAt = '';
+			reservationForm = {
+				header: '',
+				date: '',
+				startTime: '',
+				endTime: ''
+			};
 
 			await loadReservations();
-
-			setTimeout(() => {
-				goto('/profile');
-			}, 2000);
 		} catch (error: any) {
-			errorMessage = error.message || 'Errore durante la creazione della prenotazione.';
+			errorMessage = error.message || 'Failed to create reservation.';
 		} finally {
 			isSubmitting = false;
 		}
 	}
 
-	function getMinDateTime(): string {
-		const now = new Date();
-		now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-		return now.toISOString().slice(0, 16);
+	async function handleReservationAction(
+		reservationId: string,
+		action: 'confirm' | 'reject' | 'cancel'
+	) {
+		if (!confirm(`Are you sure you want to ${action} this reservation?`)) return;
+
+		try {
+			if (action === 'confirm') {
+				await api.confirmReservation(reservationId);
+			} else {
+				await api.cancelReservation(reservationId);
+			}
+			await loadReservations();
+		} catch (e: any) {
+			alert('Error: ' + e.message);
+		}
+	}
+
+	function canCancel(reservation: any): boolean {
+		if (isAdminUser || isProfessorUser) return false;
+		// Students can only cancel their own
+		return reservation.created_by === currentUserName;
+	}
+
+	function canManage(reservation: any): boolean {
+		return isAdminUser || isProfessorUser;
 	}
 </script>
 
 <svelte:head>
-	<title>{space.name} - UniSpace</title>
+	<title>{space?.name} - UniSpace</title>
 </svelte:head>
 
-<div class="container">
-	<div class="space-header">
-		<button class="back-button" onclick={handleBack}>
-			← Back to {space.building_id ? 'building' : 'spaces'}
-		</button>
-		<div class="space-type-large">{spaceTypeLabels[space.type] || space.type}</div>
-		<h1>{space.name}</h1>
-	</div>
-
-	<Card>
-		<div class="space-info">
-			<h2>Space Information</h2>
-			<div class="info-grid">
-				<div class="info-item">
-					<strong>Name:</strong>
-					<span>{space.name}</span>
-				</div>
-				<div class="info-item">
-					<strong>Type:</strong>
-					<span>{spaceTypeLabels[space.type] || space.type}</span>
-				</div>
-				{#if space.floor !== null && space.floor !== undefined}
-					<div class="info-item">
-						<strong>Floor:</strong>
-						<span>{space.floor}</span>
-					</div>
-				{/if}
-				<div class="info-item">
-					<strong>Capacity:</strong>
-					<span>{space.capacity} people</span>
-				</div>
-				{#if space.building}
-					<div class="info-item">
-						<strong>Building:</strong>
-						<a href="/buildings/{space.building.id}">{space.building.name}</a>
-					</div>
-				{/if}
-				<div class="info-item">
-					<strong>ID:</strong>
-					<span class="id-text">{space.id}</span>
-				</div>
-			</div>
+<div class="container fade-in">
+	{#if loading}
+		<div class="loading-state">
+			<div class="loader"></div>
+			<p>Loading space details...</p>
 		</div>
-	</Card>
+	{:else if space}
+		<div class="space-details">
+			<Button variant="secondary" onclick={() => history.back()} class="mb-4">
+				<span class="mr-2">←</span> Back
+			</Button>
 
-	<!-- Reservation Form Section -->
-	{#if isAuthenticated}
-		<div class="reservation-section">
-			<Card>
-				<h2>📅 Book this Space</h2>
-
-				{#if successMessage}
-					<div class="alert alert-success">
-						✅ {successMessage}
-					</div>
-				{/if}
-
-				{#if errorMessage}
-					<div class="alert alert-error">
-						❌ {errorMessage}
-					</div>
-				{/if}
-
-				<form onsubmit={handleSubmit}>
-					<div class="form-group">
-						<label for="header">
-							Reason (optional)
-							<span class="label-hint">e.g. Calculus 1 Lecture</span>
-						</label>
-						<input
-							type="text"
-							id="header"
-							bind:value={header}
-							placeholder="Enter reservation reason"
-							maxlength="255"
-						/>
-					</div>
-
-					<div class="form-row">
-						<div class="form-group">
-							<label for="start-at">
-								Start Date and Time <span class="required">*</span>
-							</label>
-							<input
-								type="datetime-local"
-								id="start-at"
-								bind:value={startAt}
-								min={getMinDateTime()}
-								required
-							/>
-						</div>
-
-						<div class="form-group">
-							<label for="end-at">
-								End Date and Time <span class="required">*</span>
-							</label>
-							<input
-								type="datetime-local"
-								id="end-at"
-								bind:value={endAt}
-								min={startAt || getMinDateTime()}
-								required
-							/>
-						</div>
-					</div>
-
-					<button type="submit" class="btn-primary" disabled={isSubmitting}>
-						{isSubmitting ? '⏳ Creating...' : '✨ Create Reservation'}
-					</button>
-				</form>
-			</Card>
-		</div>
-
-		<!-- Existing Reservations List -->
-		{#if existingReservations.length > 0}
-			<div class="existing-reservations">
-				<h2>🗓️ Existing Reservations</h2>
-				<Card>
-					<div class="reservations-list">
-						{#each existingReservations as reservation (reservation.id)}
-							<div class="reservation-item">
-								<div class="reservation-info">
-									{#if reservation.header}
-										<strong>{reservation.header}</strong>
-									{:else}
-										<strong>Reservation</strong>
-									{/if}
-									<div class="reservation-dates">
-										<span>📅 {new Date(reservation.start_at).toLocaleString('it-IT')}</span>
-										<span>→</span>
-										<span>{new Date(reservation.end_at).toLocaleString('it-IT')}</span>
-									</div>
-								</div>
-								<div class="reservation-status status-{reservation.status.toLowerCase()}">
-									{reservation.status}
-								</div>
-							</div>
-						{/each}
-					</div>
-				</Card>
+			<div class="header">
+				<h1>{space.name}</h1>
+				<div class="badges">
+					<Badge variant="primary">{spaceTypeLabels[space.type]}</Badge>
+					{#if space.department}
+						<Badge variant="outline">{space.department}</Badge>
+					{/if}
+				</div>
 			</div>
-		{/if}
-	{:else}
-		<Card>
-			<div class="auth-required">
-				<p>🔒 You must be authenticated to book this space.</p>
-				<a href="/login" class="btn-primary">Login</a>
-			</div>
-		</Card>
-	{/if}
 
-	{#if space.equipments && space.equipments.length > 0}
-		<div class="equipments-section">
-			<h2>🔧 Available Equipment</h2>
-			<div class="grid grid-3">
-				{#each space.equipments as equipment (equipment.id)}
+			<div class="content-grid">
+				<div class="main-info">
 					<Card>
-						<div class="equipment-card">
-							<h3>{equipment.name}</h3>
-							{#if equipment.description}
-								<p>{equipment.description}</p>
+						<div class="image-placeholder">
+							<div class="placeholder-icon">🏢</div>
+						</div>
+
+						<div class="info-grid">
+							<div class="info-item">
+								<!-- Replaced Icon with Emoji/Text -->
+								<div class="text-primary text-xl mb-2">🏷️</div>
+								<strong>Type</strong>
+								<span>{spaceTypeLabels[space.type] || space.type}</span>
+							</div>
+							<div class="info-item">
+								<div class="text-primary text-xl mb-2">👥</div>
+								<strong>Capacity</strong>
+								<span>{space.capacity} People</span>
+							</div>
+							<div class="info-item">
+								<div class="text-primary text-xl mb-2">📍</div>
+								<strong>Floor</strong>
+								<span>{space.floor !== undefined ? `Level ${space.floor}` : 'N/A'}</span>
+							</div>
+							<div class="info-item">
+								<div class="text-primary text-xl mb-2">🏢</div>
+								<strong>Building</strong>
+								<a href="/buildings/{space.building?.id || space.building}"
+								>{space.building?.name || 'View Building'}</a
+								>
+							</div>
+							{#if space.department}
+								<div class="info-item">
+									<div class="text-primary text-xl mb-2">🏢</div>
+									<strong>Department</strong>
+									<span>{space.department}</span>
+								</div>
 							{/if}
 						</div>
+
+						{#if space.equipments && space.equipments.length > 0}
+							<div class="equipments">
+								<h3>Equipment</h3>
+								<div class="equipment-list">
+									{#each space.equipments as equipment}
+										<div class="equipment-tag">
+											🔧 {equipment.name}
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
 					</Card>
-				{/each}
+
+					<!-- Reservations List -->
+					<div class="reservations-section mt-4">
+						<h2>Reservations</h2>
+						{#if loadingReservations}
+							<div class="loader"></div>
+						{:else if spaceReservations.length === 0}
+							<p class="text-secondary">No active reservations for this space.</p>
+						{:else}
+							<div class="reservations-list">
+								{#each spaceReservations as res}
+									<Card class="mb-2">
+										<div class="reservation-item">
+											<div class="res-info">
+												<strong>{res.header || 'Reservation'}</strong>
+												<p class="text-sm">
+													{new Date(res.start_at).toLocaleString()} - {new Date(
+													res.end_at
+												).toLocaleTimeString()}
+												</p>
+												<p class="text-xs text-secondary">Status: {res.status}</p>
+												<p class="text-xs text-secondary">User: {res.created_by}</p>
+											</div>
+											<div class="res-actions">
+												{#if canCancel(res) && res.status !== 'CANCELLED' && res.status !== 'REJECTED'}
+													<Button
+														variant="danger"
+														size="small"
+														onclick={() => handleReservationAction(res.id, 'cancel')}
+													>
+														Cancel
+													</Button>
+												{/if}
+												{#if canManage(res)}
+													{#if res.status === 'PENDING'}
+														<Button
+															variant="primary"
+															size="small"
+															onclick={() => handleReservationAction(res.id, 'confirm')}
+														>
+															Confirm
+														</Button>
+														<Button
+															variant="danger"
+															size="small"
+															onclick={() => handleReservationAction(res.id, 'reject')}
+														>
+															Reject
+														</Button>
+													{/if}
+												{/if}
+											</div>
+										</div>
+									</Card>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<div class="sidebar">
+					{#if isAuthenticated}
+						<Card>
+							<h2>Book this Space</h2>
+							{#if successMessage}
+								<div class="alert alert-success">
+									✅ {successMessage}
+								</div>
+							{/if}
+
+							{#if errorMessage}
+								<div class="alert alert-error">
+									❌ {errorMessage}
+								</div>
+							{/if}
+							<form class="reservation-form" onsubmit={handleReservation}>
+								<div class="form-group-wrapper">
+									<Input
+										id="title"
+										label="Title / Reason"
+										bind:value={reservationForm.header}
+										placeholder="e.g. Logic Lesson"
+									/>
+								</div>
+
+								<div class="form-group-wrapper">
+									<Input
+										type="date"
+										id="date"
+										label="Date"
+										bind:value={reservationForm.date}
+										required
+									/>
+								</div>
+
+								<div class="form-row">
+									<div class="form-group-wrapper">
+										<Input
+											type="time"
+											id="startTime"
+											label="Start Time"
+											bind:value={reservationForm.startTime}
+											required
+										/>
+									</div>
+									<div class="form-group-wrapper">
+										<Input
+											type="time"
+											id="endTime"
+											label="End Time"
+											bind:value={reservationForm.endTime}
+											required
+										/>
+									</div>
+								</div>
+
+								<div class="scan-button-wrapper">
+									<Button
+										type="button"
+										variant="secondary"
+										class="scan-btn"
+										onclick={() => alert('QR Scan feature coming soon!')}
+									>
+										📷 Scan QR Code
+									</Button>
+								</div>
+
+								<div class="actions">
+									<Button type="submit" disabled={isSubmitting} class="w-full">
+										{#if isSubmitting}
+											Booking...
+										{:else}
+											Confirm Booking
+										{/if}
+									</Button>
+								</div>
+							</form>
+						</Card>
+					{:else}
+						<Card>
+							<div class="auth-required">
+								<p>🔒 You must be authenticated to book this space.</p>
+								<a href="/login" class="btn-primary">Login</a>
+							</div>
+						</Card>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{:else}
-		<Card>
-			<div class="empty-state">
-				<p>No equipment available in this space.</p>
-			</div>
-		</Card>
+		<div class="error-state">
+			<h2>Space not found</h2>
+			<a href="/spaces" class="btn btn-primary">Back to Spaces</a>
+		</div>
 	{/if}
 </div>
 
 <style>
-	.space-header {
-		text-align: center;
-		margin-bottom: var(--spacing-xl);
-	}
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--spacing-lg);
+    }
 
-	.back-button {
-		background: var(--color-background-secondary);
-		color: var(--color-text);
-		border: none;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: var(--radius-md);
-		cursor: pointer;
-		margin-bottom: var(--spacing-md);
-		transition: background-color 0.2s;
-	}
+    .loading-state,
+    .error-state {
+        text-align: center;
+        padding: var(--spacing-2xl);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
 
-	.back-button:hover {
-		background: var(--color-background-tertiary);
-	}
+    .header {
+        margin-bottom: var(--spacing-xl);
+    }
 
-	.space-type-large {
-		font-size: 4rem;
-		margin-bottom: var(--spacing-sm);
-	}
+    .badges {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-top: var(--spacing-sm);
+    }
 
-	.space-header h1 {
-		margin-bottom: var(--spacing-sm);
-	}
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: var(--spacing-xl);
+        align-items: start;
+    }
 
-	.space-info {
-		padding: var(--spacing-md);
-	}
+    .image-placeholder {
+        width: 100%;
+        height: 200px;
+        background: var(--color-bg-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-md);
+    }
 
-	.space-info h2 {
-		margin-bottom: var(--spacing-md);
-	}
+    .placeholder-icon {
+        font-size: 3rem;
+        opacity: 0.5;
+    }
 
-	.info-grid {
-		display: grid;
-		gap: var(--spacing-md);
-	}
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-xl);
+    }
 
-	.info-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: var(--spacing-sm);
-		background: var(--color-background-secondary);
-		border-radius: var(--radius-sm);
-	}
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--spacing-md);
+        background: var(--color-bg-secondary);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border);
+        transition: transform 0.2s;
+    }
 
-	.info-item strong {
-		color: var(--color-text-secondary);
-	}
+    .info-item:hover {
+        transform: translateY(-2px);
+        border-color: var(--color-primary);
+    }
 
-	.info-item a {
-		color: var(--color-primary);
-		text-decoration: none;
-	}
+    .info-item strong {
+        color: var(--color-text-secondary);
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        margin-bottom: var(--spacing-xs);
+    }
 
-	.info-item a:hover {
-		text-decoration: underline;
-	}
+    .info-item span,
+    .info-item a {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
 
-	.id-text {
-		font-family: monospace;
-		font-size: 0.9rem;
-		color: var(--color-text-secondary);
-	}
+    .info-item a:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
+    }
 
-	.equipments-section {
-		margin-top: var(--spacing-2xl);
-	}
+    /* Equipment Section */
+    .equipments {
+        margin-top: var(--spacing-lg);
+        border-top: 1px solid var(--color-border);
+        padding-top: var(--spacing-lg);
+    }
 
-	.equipments-section h2 {
-		margin-bottom: var(--spacing-lg);
-	}
+    .equipments h3 {
+        margin-bottom: var(--spacing-md);
+        font-size: 1.25rem;
+    }
 
-	.equipment-card {
-		padding: var(--spacing-md);
-		text-align: center;
-	}
+    .equipment-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
 
-	.equipment-card h3 {
-		margin-bottom: var(--spacing-sm);
-	}
+    .equipment-tag {
+        padding: 0.5rem 1rem;
+        background: var(--color-bg-secondary);
+        border-radius: 999px;
+        border: 1px solid var(--color-border);
+        font-size: 0.9rem;
+    }
 
-	.equipment-card p {
-		color: var(--color-text-secondary);
-		font-size: 0.9rem;
-	}
+    .reservations-section {
+        margin-top: var(--spacing-2xl);
+        border-top: 1px solid var(--color-border);
+        padding-top: var(--spacing-lg);
+    }
 
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-2xl);
-		color: var(--color-text-secondary);
-	}
+    /* Form styles */
+    .form-group-wrapper {
+        margin-bottom: var(--spacing-lg);
+    }
 
-	/* Reservation Form Styles */
-	.reservation-section {
-		margin-top: var(--spacing-2xl);
-	}
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-md);
+    }
 
-	.reservation-section h2 {
-		margin-bottom: var(--spacing-lg);
-		padding: var(--spacing-md);
-	}
+    .scan-button-wrapper {
+        margin: var(--spacing-lg) 0;
+    }
 
-	.form-group {
-		margin-bottom: var(--spacing-lg);
-	}
+    .scan-btn {
+        width: 100%;
+    }
 
-	.form-group label {
-		display: block;
-		margin-bottom: var(--spacing-sm);
-		font-weight: 600;
-		color: var(--color-text);
-	}
+    .auth-required {
+        text-align: center;
+        padding: var(--spacing-lg);
+    }
 
-	.label-hint {
-		font-size: 0.85rem;
-		font-weight: 400;
-		color: var(--color-text-secondary);
-		margin-left: var(--spacing-xs);
-	}
+    .auth-required p {
+        margin-bottom: var(--spacing-md);
+        color: var(--color-text-secondary);
+    }
 
-	.required {
-		color: #e63946;
-	}
+    .btn-primary {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        text-decoration: none;
+    }
 
-	.form-group input,
-	.form-group textarea {
-		width: 100%;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: 2px solid var(--color-background-secondary);
-		border-radius: var(--radius-md);
-		background: var(--color-background);
-		color: var(--color-text);
-		font-size: 1rem;
-		transition:
-			border-color 0.2s,
-			box-shadow 0.2s;
-	}
+    .alert {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-md);
+    }
 
-	.form-group input:focus,
-	.form-group textarea:focus {
-		outline: none;
-		border-color: var(--color-primary);
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
+    .alert-success {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid var(--color-success);
+        color: var(--color-success);
+    }
 
-	.form-row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--spacing-md);
-	}
+    .alert-error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid var(--color-error);
+        color: var(--color-error);
+    }
 
-	@media (max-width: 768px) {
-		.form-row {
-			grid-template-columns: 1fr;
-		}
-	}
+    .reservation-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
 
-	.btn-primary {
-		display: inline-block;
-		padding: var(--spacing-md) var(--spacing-xl);
-		background: var(--color-primary);
-		color: white;
-		border: none;
-		border-radius: var(--radius-md);
-		font-size: 1rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-		text-decoration: none;
-		text-align: center;
-		width: 100%;
-		margin-top: var(--spacing-sm);
-	}
+    .text-secondary {
+        color: var(--color-text-secondary);
+    }
 
-	.btn-primary:hover:not(:disabled) {
-		background: #2563eb;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-	}
+    .text-sm {
+        font-size: 0.875rem;
+    }
 
-	.btn-primary:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	.alert {
-		padding: var(--spacing-md);
-		border-radius: var(--radius-md);
-		margin-bottom: var(--spacing-md);
-		font-weight: 500;
-	}
-
-	.alert-success {
-		background: #d1fae5;
-		color: #065f46;
-		border: 2px solid #10b981;
-	}
-
-	.alert-error {
-		background: #fee2e2;
-		color: #991b1b;
-		border: 2px solid #ef4444;
-	}
-
-	/* Existing Reservations Styles */
-	.existing-reservations {
-		margin-top: var(--spacing-2xl);
-	}
-
-	.existing-reservations h2 {
-		margin-bottom: var(--spacing-lg);
-	}
-
-	.reservations-list {
-		padding: var(--spacing-md);
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-md);
-	}
-
-	.reservation-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: var(--spacing-md);
-		background: var(--color-background-secondary);
-		border-radius: var(--radius-md);
-		gap: var(--spacing-md);
-	}
-
-	.reservation-info {
-		flex: 1;
-	}
-
-	.reservation-info strong {
-		display: block;
-		margin-bottom: var(--spacing-xs);
-		color: var(--color-text);
-	}
-
-	.reservation-dates {
-		display: flex;
-		gap: var(--spacing-xs);
-		font-size: 0.9rem;
-		color: var(--color-text-secondary);
-		flex-wrap: wrap;
-	}
-
-	.reservation-status {
-		padding: var(--spacing-xs) var(--spacing-md);
-		border-radius: var(--radius-sm);
-		font-size: 0.85rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-pending {
-		background: #fef3c7;
-		color: #92400e;
-	}
-
-	.status-confirmed {
-		background: #d1fae5;
-		color: #065f46;
-	}
-
-	.status-cancelled,
-	.status-rejected {
-		background: #fee2e2;
-		color: #991b1b;
-	}
-
-	.status-expired {
-		background: #e5e7eb;
-		color: #4b5563;
-	}
-
-	.auth-required {
-		text-align: center;
-		padding: var(--spacing-2xl);
-	}
-
-	.auth-required p {
-		margin-bottom: var(--spacing-lg);
-		color: var(--color-text-secondary);
-		font-size: 1.1rem;
-	}
-
-	.auth-required .btn-primary {
-		display: inline-block;
-		width: auto;
-		padding: var(--spacing-md) var(--spacing-2xl);
-	}
+    .text-xs {
+        font-size: 0.75rem;
+    }
 </style>

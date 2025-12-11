@@ -1,14 +1,27 @@
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
+import { browser } from '$app/environment';
+
+export const ssr = false;
 
 export const load: PageLoad = async () => {
-    if (typeof window !== 'undefined') {
-        const userRole = localStorage.getItem('user_role');
+	if (!browser) {
+		return {};
+	}
 
-        if (userRole !== 'professor') {
-            throw redirect(302, '/');
-        }
-    }
+	const storedUser = localStorage.getItem('user');
 
-    return {};
+	if (storedUser) {
+		try {
+			const user = JSON.parse(storedUser);
+			// Allow access if user is superuser (admin)
+			if (user.is_superuser) {
+				return {};
+			}
+		} catch {
+			// Invalid JSON, redirect
+		}
+	}
+
+	throw redirect(302, '/');
 };

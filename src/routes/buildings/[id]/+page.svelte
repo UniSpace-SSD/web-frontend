@@ -1,7 +1,12 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import Card from '$lib/components/Card.svelte';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { api } from '$lib/services/api';
 	import { goto } from '$app/navigation';
+	import Card from '$lib/components/Card.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import { Building, MapPin, ArrowLeft } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -26,34 +31,42 @@
 </svelte:head>
 
 <div class="container">
-	<div class="building-header">
-		<button class="back-button" onclick={handleBack}> ← Back to buildings </button>
-		<h1>🏛️ {building.name}</h1>
-		<p class="building-address">📍 {building.address}</p>
+	<div class="building-header fade-in">
+		<Button variant="secondary" onclick={() => history.back()} class="mb-4">
+			<ArrowLeft size={16} class="mr-2 inline-block" />
+			Back
+		</Button>
+		<h1>{building.name}</h1>
+		<p class="building-address">{building.address}</p>
 	</div>
 
-	<Card>
+	<Card class="mb-8 card-glass">
 		<div class="building-info">
 			<h2>Building Information</h2>
 			<div class="info-grid">
 				<div class="info-item">
-					<strong>Name:</strong>
+					<Building size={24} class="mb-2 text-primary" />
+					<strong>Name</strong>
 					<span>{building.name}</span>
 				</div>
 				<div class="info-item">
-					<strong>Address:</strong>
+					<MapPin size={24} class="mb-2 text-primary" />
+					<strong>Address</strong>
 					<span>{building.address}</span>
 				</div>
-				<div class="info-item">
-					<strong>ID:</strong>
-					<span class="id-text">{building.id}</span>
-				</div>
+				{#if building.department}
+					<div class="info-item">
+						<div class="text-primary text-xl mb-2">🏢</div>
+						<strong>Department</strong>
+						<span>{building.department}</span>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</Card>
 
-	<div class="spaces-section">
-		<h2>📍 Spaces in this building</h2>
+	<div class="spaces-section fade-in">
+		<h2>Spaces in {building.name}</h2>
 
 		{#if spaces.length === 0}
 			<div class="empty-state">
@@ -87,106 +100,114 @@
 </div>
 
 <style>
-	.building-header {
-		text-align: center;
-		margin-bottom: var(--spacing-xl);
-	}
+    .building-header {
+        text-align: center;
+        margin-bottom: var(--spacing-xl);
+    }
 
-	.back-button {
-		background: var(--color-background-secondary);
-		color: var(--color-text);
-		border: none;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: var(--radius-md);
-		cursor: pointer;
-		margin-bottom: var(--spacing-md);
-		transition: background-color 0.2s;
-	}
+    .building-header h1 {
+        margin-bottom: var(--spacing-sm);
+    }
 
-	.back-button:hover {
-		background: var(--color-background-tertiary);
-	}
+    .building-address {
+        color: var(--color-text-secondary);
+        font-size: 1.1rem;
+    }
 
-	.building-header h1 {
-		margin-bottom: var(--spacing-sm);
-	}
+    .building-info {
+        padding: var(--spacing-md);
+    }
 
-	.building-address {
-		color: var(--color-text-secondary);
-		font-size: 1.1rem;
-	}
+    .building-info h2 {
+        margin-bottom: var(--spacing-md);
+        font-size: 1.5rem;
+    }
 
-	.building-info {
-		padding: var(--spacing-md);
-	}
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-md);
+    }
 
-	.building-info h2 {
-		margin-bottom: var(--spacing-md);
-	}
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--spacing-lg);
+        background: var(--color-bg-secondary);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border);
+        transition: transform 0.2s;
+    }
 
-	.info-grid {
-		display: grid;
-		gap: var(--spacing-md);
-	}
+    .info-item:hover {
+        transform: translateY(-2px);
+        border-color: var(--color-primary);
+    }
 
-	.info-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: var(--spacing-sm);
-		background: var(--color-background-secondary);
-		border-radius: var(--radius-sm);
-	}
+    .info-item strong {
+        color: var(--color-text-secondary);
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        margin-bottom: var(--spacing-xs);
+    }
 
-	.info-item strong {
-		color: var(--color-text-secondary);
-	}
+    .info-item span {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
 
-	.id-text {
-		font-family: monospace;
-		font-size: 0.9rem;
-		color: var(--color-text-secondary);
-	}
+    .id-text {
+        font-family: monospace;
+        font-size: 1rem !important;
+        background: var(--color-bg-tertiary);
+        padding: 0.2rem 0.6rem;
+        border-radius: var(--radius-sm);
+    }
 
-	.spaces-section {
-		margin-top: var(--spacing-2xl);
-	}
+    .spaces-section {
+        margin-top: var(--spacing-2xl);
+    }
 
-	.spaces-section h2 {
-		margin-bottom: var(--spacing-lg);
-	}
+    .spaces-section h2 {
+        margin-bottom: var(--spacing-lg);
+    }
 
-	.space-card {
-		text-align: center;
-		padding: var(--spacing-md);
-	}
+    .space-card {
+        text-align: center;
+        padding: var(--spacing-md);
+    }
 
-	.space-type {
-		font-size: 2rem;
-		margin-bottom: var(--spacing-sm);
-	}
+    .space-type {
+        font-size: 2.5rem;
+        margin-bottom: var(--spacing-sm);
+    }
 
-	.space-card h3 {
-		margin-bottom: var(--spacing-md);
-	}
+    .space-card h3 {
+        margin-bottom: var(--spacing-md);
+    }
 
-	.space-details {
-		margin-bottom: var(--spacing-lg);
-		color: var(--color-text-secondary);
-	}
+    .space-details {
+        margin-bottom: var(--spacing-lg);
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
+    }
 
-	.space-details p {
-		margin-bottom: var(--spacing-xs);
-	}
+    .space-details p {
+        margin-bottom: var(--spacing-xs);
+    }
 
-	.space-actions {
-		display: flex;
-		justify-content: center;
-	}
+    .space-actions {
+        display: flex;
+        justify-content: center;
+    }
 
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-2xl);
-		color: var(--color-text-secondary);
-	}
+    .empty-state {
+        text-align: center;
+        padding: var(--spacing-2xl);
+        color: var(--color-text-secondary);
+    }
 </style>
