@@ -1,8 +1,3 @@
-/**
- * UniSpace API Service
- * Handles all HTTP requests to the backend API
- */
-
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 export interface User {
@@ -11,6 +6,10 @@ export interface User {
     email: string;
     first_name: string;
     last_name: string;
+    date_of_birth: string;
+    role: 'student' | 'professor';
+    department: string;
+    is_superuser: boolean;
 }
 
 export interface LoginRequest {
@@ -32,6 +31,12 @@ export interface RegisterRequest {
     last_name: string;
     date_of_birth: string;
     role: 'student' | 'professor';
+    department: string;
+}
+
+export interface Department {
+    code: string;
+    name: string;
 }
 
 export interface Building {
@@ -120,7 +125,7 @@ class ApiClient {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.detail || data.message || 'API request failed');
+                throw new Error(data.detail || data.message || data.error || 'API request failed');
             }
 
             return data;
@@ -219,6 +224,11 @@ class ApiClient {
         return this.request<void>(`/spaces/${id}/`, {
             method: 'DELETE',
         });
+    }
+
+    // Departments Endpoints
+    async getDepartments(): Promise<Department[]> {
+        return this.request<Department[]>('/spaces/departments/');
     }
 
     // Reservations Endpoints

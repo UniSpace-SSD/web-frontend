@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
+  import { onMount } from 'svelte';
+	import { api } from '$lib/services/api';
   
   let formData = $state({
     username: '',
@@ -12,12 +14,30 @@
     first_name: '',
     last_name: '',
     date_of_birth: '',
-    role: 'student' as 'student' | 'professor'
+    role: 'student' as 'student' | 'professor',
+    department: '' as string  // Aggiungi department
   });
   
   let error = $state('');
   let success = $state(false);
   let isLoading = $state(false);
+  let isLoadingDepartments = $state(false);
+  let departments = $state<Array<{code: string, name: string}>>([]);
+  
+  onMount(async () => {
+    await fetchDepartments();
+  });
+  
+  async function fetchDepartments() {
+    isLoadingDepartments = true;
+    try {
+      departments = await api.getDepartments();
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    } finally {
+      isLoadingDepartments = false;
+    }
+  }
   
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -25,6 +45,11 @@
 
     if (!formData.username || !formData.email || !formData.password1 || !formData.password2) {
       error = 'Please fill in all required fields';
+      return;
+    }
+    
+    if (!formData.department) {
+      error = 'Please select a department';
       return;
     }
     
@@ -50,6 +75,7 @@
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('user_role', formData.role);
+        localStorage.setItem('user_department', formData.department);
       }
       success = true;
 
@@ -166,6 +192,27 @@
             </div>
             
             <div class="form-group">
+              <label for="department" class="form-label">Department</label>
+              {#if isLoadingDepartments}
+                <div class="loading-departments">Loading departments...</div>
+              {:else if departments.length === 0}
+                <div class="no-departments">No departments available</div>
+              {:else}
+                <select
+                  id="department"
+                  class="form-select"
+                  bind:value={formData.department}
+                  disabled={isLoading}
+                  required
+                >
+                  {#each departments as dept}
+                    <option value={dept.code}>{dept.name}</option>
+                  {/each}
+                </select>
+              {/if}
+            </div>
+            
+            <div class="form-group">
               <label for="password1" class="form-label">Password</label>
               <input
                 id="password1"
@@ -191,7 +238,7 @@
               />
             </div>
             
-            <Button type="submit" variant="primary" disabled={isLoading}>
+            <Button type="submit" variant="primary" disabled={isLoading || isLoadingDepartments}>
               {#if isLoading}
                 Registering...
               {:else}
@@ -265,6 +312,15 @@
     background-color: rgba(16, 185, 129, 0.1);
     border: 1px solid var(--color-success);
     color: var(--color-success);
+  }
+  
+  .loading-departments,
+  .no-departments {
+    padding: var(--spacing-md);
+    text-align: center;
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
   }
   
   .footer-links {
