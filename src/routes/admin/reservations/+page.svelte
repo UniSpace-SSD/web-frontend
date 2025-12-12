@@ -39,16 +39,14 @@
 		loadReservations();
 	});
 
-	async function handleAction(reservationId: string, action: 'confirm' | 'reject') {
-		if (!confirm(`Are you sure you want to ${action} this reservation?`)) return;
-
+	async function handleAction(reservationId: string, action: 'confirm' | 'cancel') {
 		try {
 			if (action === 'confirm') {
 				await api.confirmReservation(reservationId);
 				snackbar.add('Reservation confirmed', 'success');
 			} else {
 				await api.cancelReservation(reservationId);
-				snackbar.add('Reservation rejected', 'success');
+				snackbar.add('Reservation cancelled', 'success');
 			}
 			loadReservations();
 		} catch (error) {
@@ -64,7 +62,6 @@
 			case 'PENDING':
 				return 'warning';
 			case 'CANCELLED':
-			case 'REJECTED':
 				return 'danger';
 			default:
 				return 'secondary';
@@ -131,9 +128,9 @@
 											<Button
 												variant="danger"
 												size="small"
-												onclick={() => handleAction(res.id, 'reject')}
+												onclick={() => handleAction(res.id, 'cancel')}
 											>
-												Reject
+												Cancel
 											</Button>
 										</div>
 									{:else}

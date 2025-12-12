@@ -14,7 +14,7 @@
 	let canManage = $state(false);
 	let currentUsername = $state<string | null>(null);
 
-	const statuses = ['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED', 'REJECTED', 'EXPIRED'];
+	const statuses = ['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED'];
 
 	$effect(() => {
 		const unsubManage = canManageReservations.subscribe((value) => (canManage = value));
@@ -41,17 +41,6 @@
 		} catch (error) {
 			console.error('Error confirming reservation:', error);
 			snackbar.add('Error confirming reservation', 'error');
-		}
-	}
-
-	async function rejectReservation(id: string) {
-		try {
-			const updated = await api.cancelReservation(id);
-			reservations = reservations.map((r) => (r.id === id ? updated : r));
-			snackbar.add('Reservation rejected', 'success');
-		} catch (error) {
-			console.error('Error rejecting reservation:', error);
-			snackbar.add('Error rejecting reservation', 'error');
 		}
 	}
 
@@ -145,8 +134,8 @@
 									<Button variant="primary" onclick={() => confirmReservation(reservation.id)}>
 										Confirm
 									</Button>
-									<Button variant="danger" onclick={() => rejectReservation(reservation.id)}>
-										Reject
+									<Button variant="danger" onclick={() => cancelReservation(reservation.id)}>
+										Cancel
 									</Button>
 								{/if}
 							{:else if reservation.status === 'CONFIRMED'}

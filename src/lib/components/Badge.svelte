@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		status?: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED';
+		status?: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 		variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'warning' | 'default';
 		children?: any;
 	}
@@ -17,10 +17,7 @@
 			case 'CONFIRMED':
 				return 'success';
 			case 'CANCELLED':
-			case 'REJECTED':
 				return 'danger';
-			case 'EXPIRED':
-				return 'secondary';
 			default:
 				return 'primary';
 		}

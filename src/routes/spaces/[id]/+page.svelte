@@ -58,7 +58,7 @@
 			if (!space?.id) return;
 			const allReservations = await api.getReservationsBySpace(space.id);
 			spaceReservations = allReservations.filter(
-				(r) => r.status !== 'CANCELLED' && r.status !== 'REJECTED'
+				(r) => r.status !== 'CANCELLED'
 			);
 		} catch (error) {
 			console.error('Error loading reservations:', error);
@@ -67,7 +67,7 @@
 
 	function checkOverlap(start: Date, end: Date): boolean {
 		return spaceReservations.some((reservation) => {
-			if (reservation.status === 'CANCELLED' || reservation.status === 'REJECTED') return false;
+			if (reservation.status === 'CANCELLED') return false;
 			const existingStart = new Date(reservation.start_at);
 			const existingEnd = new Date(reservation.end_at);
 			return start < existingEnd && end > existingStart;
@@ -132,7 +132,7 @@
 
 	async function handleReservationAction(
 		reservationId: string,
-		action: 'confirm' | 'reject' | 'cancel'
+		action: 'confirm' | 'cancel'
 	) {
 		try {
 			if (action === 'confirm') {
@@ -260,7 +260,7 @@
 												<p class="text-xs text-secondary">User: {res.created_by}</p>
 											</div>
 											<div class="res-actions">
-												{#if canCancel(res) && res.status !== 'CANCELLED' && res.status !== 'REJECTED'}
+												{#if canCancel(res) && res.status !== 'CANCELLED'}
 													<Button
 														variant="danger"
 														size="small"
@@ -281,9 +281,9 @@
 														<Button
 															variant="danger"
 															size="small"
-															onclick={() => handleReservationAction(res.id, 'reject')}
+															onclick={() => handleReservationAction(res.id, 'cancel')}
 														>
-															Reject
+															Cancel
 														</Button>
 													{/if}
 												{/if}

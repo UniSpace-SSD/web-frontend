@@ -70,7 +70,7 @@ export interface Reservation {
 	header?: string;
 	start_at: string;
 	end_at: string;
-	status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED';
+	status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 	created_at?: string;
 	updated_at?: string;
 }
