@@ -134,8 +134,6 @@
 		reservationId: string,
 		action: 'confirm' | 'reject' | 'cancel'
 	) {
-		if (!confirm(`Are you sure you want to ${action} this reservation?`)) return;
-
 		try {
 			if (action === 'confirm') {
 				await api.confirmReservation(reservationId);
@@ -249,7 +247,7 @@
 						{:else}
 							<div class="reservations-list">
 								{#each spaceReservations as res}
-									<Card class="mb-2">
+									<Card>
 										<div class="reservation-item">
 											<div class="res-info">
 												<strong>{res.header || 'Reservation'}</strong>
@@ -354,17 +352,6 @@
 									</div>
 								</div>
 
-								<div class="scan-button-wrapper">
-									<Button
-										type="button"
-										variant="secondary"
-										class="scan-btn"
-										onclick={() => alert('QR Scan feature coming soon!')}
-									>
-										📷 Scan QR Code
-									</Button>
-								</div>
-
 								<div class="actions">
 									<Button type="submit" disabled={isSubmitting} class="w-full">
 										{#if isSubmitting}
@@ -380,7 +367,7 @@
 						<Card>
 							<div class="auth-required">
 								<p>🔒 You must be authenticated to book this space.</p>
-								<a href="/login" class="btn-primary">Login</a>
+								<a href="/auth/login" class="btn-primary">Login</a>
 							</div>
 						</Card>
 					{/if}
@@ -532,14 +519,6 @@
         gap: var(--spacing-md);
     }
 
-    .scan-button-wrapper {
-        margin: var(--spacing-lg) 0;
-    }
-
-    .scan-btn {
-        width: 100%;
-    }
-
     .auth-required {
         text-align: center;
         padding: var(--spacing-lg);
@@ -577,12 +556,21 @@
         color: var(--color-error);
     }
 
+	.reservations-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-lg);
+	}
+
     .reservation-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--spacing-md);
-    }
+		padding: var(--spacing-md);
+		border-radius: var(--radius-md);
+	}
+
+	.reservations-list :global(.card) {
+		border: 1px solid var(--color-border);
+		box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+	}
 
     .text-secondary {
         color: var(--color-text-secondary);

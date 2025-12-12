@@ -26,7 +26,7 @@
 
 			goto('/');
 		} catch (err: any) {
-			error = err.message || 'Login failed. Please check your credentials.';
+			error = 'Login failed. Please check your credentials.';
 		} finally {
 			isLoading = false;
 		}
@@ -143,4 +143,18 @@
     .form-actions :global(.btn) {
         width: 100%;
     }
+
+	.alert {
+		padding: var(--spacing-md);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--spacing-md);
+		font-size: 0.95rem;
+	}
+
+	.alert-error {
+		color: #b91c1c; 
+		background-color: rgba(239, 68, 68, 0.12);
+		border: 1px solid rgba(239, 68, 68, 0.4);
+		text-align: center;
+	}
 </style>
