@@ -51,9 +51,9 @@
 		<div class="container">
 			<div class="nav-content">
 				<a href="/" class="nav-brand">
-					<span class="brand-icon">🎓</span>
-					<span class="brand-text">UniSpace</span>
-				</a>
+                    <img class="brand-icon" src="/favicon.png" alt="UniSpace logo" />
+                    <span class="brand-text">UniSpace</span>
+                </a>
 
 				<button class="mobile-menu-btn" onclick={() => (mobileMenuOpen = !mobileMenuOpen)}>
 					<span></span>
@@ -145,7 +145,11 @@
     }
 
     .brand-icon {
-        font-size: 2rem;
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+        display: inline-block;
+        vertical-align: middle;
     }
 
     .mobile-menu-btn {
