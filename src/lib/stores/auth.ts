@@ -176,13 +176,8 @@ export const isAdmin = derived(
 	$auth => {
 		if (!$auth.user) return false;
 
-		if ($auth.user.role === 'professor' || $auth.user.is_superuser) {
+		if ($auth.user.is_superuser) {
 			return true;
-		}
-
-		if (typeof window !== 'undefined') {
-			const userRole = localStorage.getItem('user_role');
-			return userRole === 'professor';
 		}
 
 		return false;
