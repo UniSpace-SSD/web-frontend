@@ -13,13 +13,17 @@
 	let loading = $state(true);
 
 	onMount(() => {
+		// Verifica se l'utente è admin
 		const unsubscribe = isAdmin.subscribe((value) => {
 			if (!value) {
-				// Optional: redirect logic if strictly enforcing here
-				// goto('/');
+				// Se non è admin, reindirizza alla home
+				goto('/');
 			}
 		});
+		
+		// Carica le reservations
 		loadReservations();
+		
 		return unsubscribe;
 	});
 
@@ -34,10 +38,6 @@
 			loading = false;
 		}
 	}
-
-	onMount(() => {
-		loadReservations();
-	});
 
 	async function handleAction(reservationId: string, action: 'confirm' | 'cancel') {
 		try {
@@ -76,7 +76,7 @@
 <div class="container fade-in">
 	<div class="page-header">
 		<div class="header-content">
-			<h1>📋 All Reservations</h1>
+			<h1>All Reservations</h1>
 			<p>Manage all system reservations</p>
 		</div>
 		<a href="/admin" class="btn btn-secondary">← Back to Dashboard</a>

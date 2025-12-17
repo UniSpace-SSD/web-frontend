@@ -85,7 +85,7 @@
 					>
 						➕ Create Space
 					</button>
-					<a href="/reservations" class="btn btn-secondary"> 📋 View All Reservations </a>
+					<a href="/admin/reservations" class="btn btn-secondary"> 📋 View All Reservations </a>
 				</div>
 			</section>
 

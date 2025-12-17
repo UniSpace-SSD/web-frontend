@@ -14,12 +14,12 @@ export const load: PageLoad = async () => {
 	if (storedUser) {
 		try {
 			const user = JSON.parse(storedUser);
-			// Allow access if user is superuser (admin)
+			// Permetti l'accesso solo se l'utente è superuser (admin)
 			if (user.is_superuser) {
 				return {};
 			}
 		} catch {
-			// Invalid JSON, redirect
+			// JSON non valido, reindirizza
 		}
 	}
 
