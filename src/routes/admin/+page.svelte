@@ -72,21 +72,7 @@
 		<div class="admin-sections">
 			<section class="admin-section">
 				<h2>Quick Actions</h2>
-				<div class="quick-actions">
-					<button
-						class="btn btn-primary"
-						onclick={() => snackbar.add('Feature coming soon', 'info')}
-					>
-						➕ Create Building
-					</button>
-					<button
-						class="btn btn-primary"
-						onclick={() => snackbar.add('Feature coming soon', 'info')}
-					>
-						➕ Create Space
-					</button>
 					<a href="/admin/reservations" class="btn btn-secondary"> 📋 View All Reservations </a>
-				</div>
 			</section>
 
 			<section class="admin-section">
